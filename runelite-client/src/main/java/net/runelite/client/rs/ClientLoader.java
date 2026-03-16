@@ -207,6 +207,45 @@ public class ClientLoader implements Supplier<Client>
 
 		log.info("injected-client {}", rs.getBuildID());
 
+		// --- AEROSCAPE START ---
+		// Override RSA modulus and exponent in the gamepack's bb class
+		// to use our private server's RSA key pair instead of Jagex's.
+		try
+		{
+			Class<?> bbClass = ClientLoader.class.getClassLoader().loadClass("bb");
+			java.math.BigInteger aeroModulus = new java.math.BigInteger(
+				"150492140966408327749341145053202508150537969830502086677342780103640879923875240996829585286071730908541028632975127088450630032246627217568787047537616220110568813306988290299073874320966509970351145784367883871404819405205176567634728744055909475386021534006859334601425659707308796014125410289201906736459"
+			);
+			java.math.BigInteger aeroExponent = new java.math.BigInteger("65537");
+
+			// Try both possible field names for modulus and exponent
+			for (java.lang.reflect.Field f : bbClass.getDeclaredFields())
+			{
+				if (f.getType() == java.math.BigInteger.class)
+				{
+					f.setAccessible(true);
+					java.math.BigInteger current = (java.math.BigInteger) f.get(null);
+					if (current != null && current.bitLength() > 256)
+					{
+						// This is the modulus (large number)
+						f.set(null, aeroModulus);
+						log.info("AeroScape: Replaced RSA modulus in bb.{} ({}-bit -> {}-bit)",
+							f.getName(), current.bitLength(), aeroModulus.bitLength());
+					}
+					else if (current != null && current.equals(new java.math.BigInteger("65537")))
+					{
+						// Exponent stays the same (65537)
+						log.info("AeroScape: RSA exponent bb.{} = {} (unchanged)", f.getName(), current);
+					}
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			log.warn("AeroScape: Failed to override RSA key in bb class", e);
+		}
+		// --- AEROSCAPE END ---
+
 		return rs;
 	}
 
