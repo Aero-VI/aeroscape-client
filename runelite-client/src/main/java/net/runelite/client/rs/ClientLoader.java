@@ -156,7 +156,18 @@ public class ClientLoader implements Supplier<Client>
 		catch (IOException ex)
 		{
 			log.debug("error downloading backup config", ex);
-			throw err; // NOPMD: PreserveStackTrace - use error from Jagex's servers
+		}
+
+		// --- AEROSCAPE: ultimate fallback to embedded config ---
+		log.info("Falling back to embedded AeroScape jav_config");
+		try
+		{
+			return clientConfigLoader.fetchEmbedded();
+		}
+		catch (IOException ex2)
+		{
+			log.error("Failed to load embedded config", ex2);
+			throw err; // NOPMD: PreserveStackTrace
 		}
 	}
 

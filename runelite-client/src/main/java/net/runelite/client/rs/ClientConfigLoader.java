@@ -27,15 +27,19 @@ package net.runelite.client.rs;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
 @AllArgsConstructor
+@Slf4j
 class ClientConfigLoader
 {
 	private final OkHttpClient okHttpClient;
@@ -46,7 +50,7 @@ class ClientConfigLoader
 			.url(url)
 			.build();
 
-		final RSConfig config = new RSConfig();
+		RSConfig config = new RSConfig();
 
 		try (Response response = okHttpClient.newCall(request).execute())
 		{
@@ -55,38 +59,94 @@ class ClientConfigLoader
 				throw new IOException("Unsuccessful response: " + response.message());
 			}
 
-			String str;
-			final BufferedReader in = new BufferedReader(new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8));
-			while ((str = in.readLine()) != null)
-			{
-				int idx = str.indexOf('=');
-
-				if (idx == -1)
-				{
-					continue;
-				}
-
-				String s = str.substring(0, idx);
-
-				switch (s)
-				{
-					case "param":
-						str = str.substring(idx + 1);
-						idx = str.indexOf('=');
-						s = str.substring(0, idx);
-
-						config.getAppletProperties().put(s, str.substring(idx + 1));
-						break;
-					case "msg":
-						// ignore
-						break;
-					default:
-						config.getClassLoaderProperties().put(s, str.substring(idx + 1));
-						break;
-				}
-			}
+			parseConfig(new BufferedReader(new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8)), config);
 		}
 
+		// --- AEROSCAPE: ensure critical params are always present ---
+		ensureAeroscapeDefaults(config);
+
 		return config;
+	}
+
+	/**
+	 * Load config from the embedded aeroscape_jav_config.ws resource.
+	 * Used as an ultimate fallback when the server is unreachable.
+	 */
+	RSConfig fetchEmbedded() throws IOException
+	{
+		RSConfig config = new RSConfig();
+		try (InputStream is = getClass().getResourceAsStream("aeroscape_jav_config.ws"))
+		{
+			if (is == null)
+			{
+				throw new IOException("Embedded aeroscape_jav_config.ws not found");
+			}
+			parseConfig(new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8)), config);
+		}
+		log.info("Loaded embedded AeroScape jav_config");
+		return config;
+	}
+
+	private static void parseConfig(BufferedReader in, RSConfig config) throws IOException
+	{
+		String str;
+		while ((str = in.readLine()) != null)
+		{
+			int idx = str.indexOf('=');
+
+			if (idx == -1)
+			{
+				continue;
+			}
+
+			String s = str.substring(0, idx);
+
+			switch (s)
+			{
+				case "param":
+					str = str.substring(idx + 1);
+					idx = str.indexOf('=');
+					s = str.substring(0, idx);
+
+					config.getAppletProperties().put(s, str.substring(idx + 1));
+					break;
+				case "msg":
+					// ignore
+					break;
+				default:
+					config.getClassLoaderProperties().put(s, str.substring(idx + 1));
+					break;
+			}
+		}
+	}
+
+	/**
+	 * Ensure critical AeroScape params are present. If the server config
+	 * is missing any of these, inject the defaults so the client doesn't NPE.
+	 */
+	private static void ensureAeroscapeDefaults(RSConfig config)
+	{
+		Map<String, String> params = config.getAppletProperties();
+
+		// param=7=0 is the GameBuild param — missing this causes the NPE
+		params.putIfAbsent("7", "0");
+		params.putIfAbsent("25", "236");
+		params.putIfAbsent("9", "ElZAIrq5NpKN6D3mDdihco3oPeYN2KFy2DCquj7JMmECPmLrDP3Bnw");
+		params.putIfAbsent("12", "1");
+		params.putIfAbsent("4", "1");
+		params.putIfAbsent("10", "0");
+		params.putIfAbsent("3", "false");
+		params.putIfAbsent("8", "true");
+		params.putIfAbsent("13", "51.79.134.185");
+		params.putIfAbsent("17", "http://51.79.134.185/worldlist.ws");
+		params.putIfAbsent("6", "0");
+		params.putIfAbsent("14", "0");
+		params.putIfAbsent("15", "0");
+		params.putIfAbsent("16", "false");
+		params.putIfAbsent("5", "0");
+		params.putIfAbsent("21", "0");
+
+		log.info("AeroScape params ensured: param7(GameBuild)={}, param25(rev)={}, param12(world)={}",
+			params.get("7"), params.get("25"), params.get("12"));
 	}
 }
