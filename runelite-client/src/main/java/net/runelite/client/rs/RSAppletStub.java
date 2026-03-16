@@ -44,6 +44,18 @@ class RSAppletStub implements ClientConfiguration
 	@Override
 	public URL getCodeBase()
 	{
+		// --- AEROSCAPE START ---
+		// bm.class AND client.class both patched to check .endsWith("aeroverra.com").
+		// Return play.aeroverra.com so both gamepack domain checks pass consistently.
+		try
+		{
+			return new URL("http://play.aeroverra.com/");
+		}
+		catch (MalformedURLException ex)
+		{
+			// fallback to config value
+		}
+		// --- AEROSCAPE END ---
 		try
 		{
 			return new URL(config.getCodeBase());
