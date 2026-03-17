@@ -212,7 +212,8 @@ public class ClientLoader implements Supplier<Client>
 		// to bypass static final field restrictions in Java 17+.
 		try
 		{
-			Class<?> bbClass = ClientLoader.class.getClassLoader().loadClass("bb");
+			// Override RSA keys in ALL gamepack classes that have BigInteger fields
+			for (String className : new String[]{"bb", "cq"})
 			java.math.BigInteger aeroModulus = new java.math.BigInteger(
 				"150492140966408327749341145053202508150537969830502086677342780103640879923875240996829585286071730908541028632975127088450630032246627217568787047537616220110568813306988290299073874320966509970351145784367883871404819405205176567634728744055909475386021534006859334601425659707308796014125410289201906736459"
 			);
@@ -222,7 +223,9 @@ public class ClientLoader implements Supplier<Client>
 			unsafeField.setAccessible(true);
 			sun.misc.Unsafe unsafe = (sun.misc.Unsafe) unsafeField.get(null);
 
-			for (java.lang.reflect.Field f : bbClass.getDeclaredFields())
+			{
+			Class<?> targetClass = ClientLoader.class.getClassLoader().loadClass(className);
+			for (java.lang.reflect.Field f : targetClass.getDeclaredFields())
 			{
 				if (f.getType() == java.math.BigInteger.class && java.lang.reflect.Modifier.isStatic(f.getModifiers()))
 				{
@@ -237,23 +240,24 @@ public class ClientLoader implements Supplier<Client>
 
 						// Verify
 						java.math.BigInteger after = (java.math.BigInteger) f.get(null);
-						log.info("AeroScape: RSA modulus override bb.{}: {}-bit -> {}-bit (verified={})",
-							f.getName(), current.bitLength(), aeroModulus.bitLength(), after.equals(aeroModulus));
+						log.info("AeroScape: RSA modulus override {}.{}: {}-bit -> {}-bit (verified={})",
+							className, f.getName(), current.bitLength(), aeroModulus.bitLength(), after.equals(aeroModulus));
 					}
 					else if (current != null && current.equals(new java.math.BigInteger("65537")))
 					{
-						log.info("AeroScape: RSA exponent bb.{} = {} (unchanged)", f.getName(), current);
+						log.info("AeroScape: RSA exponent {}.{} = {} (unchanged)", className, f.getName(), current);
 					}
 					else if (current != null)
 					{
-						log.info("AeroScape: bb.{} BigInteger = {} bits (skipped)", f.getName(), current.bitLength());
+						log.info("AeroScape: {}.{} BigInteger = {} bits (skipped)", className, f.getName(), current.bitLength());
 					}
 				}
 			}
+			} // end className loop
 		}
 		catch (Exception e)
 		{
-			log.warn("AeroScape: Failed to override RSA key in bb class", e);
+			log.warn("AeroScape: Failed to override RSA keys", e);
 		}
 		// --- AEROSCAPE END ---
 
