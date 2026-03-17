@@ -87,7 +87,7 @@ Built in a single 16-hour session. 26 versions shipped. From "client crashes on 
 
 ## Related
 
-- **Server:** [Aero-VI/aeroscape-server](https://github.com/Aero-VI/aeroscape-server)
+- **Server:** [Aero-VI/aeroscape-osrs-server](https://github.com/Aero-VI/aeroscape-osrs-server)
 - **Documentation:** [docs/RSPS-BUILD-GUIDE.md](docs/RSPS-BUILD-GUIDE.md)
 
 ## License
